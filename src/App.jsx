@@ -36,30 +36,43 @@ export default function App() {
   // Load words from backend on mount
   useEffect(() => {
     fetch('/api/words')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("API not available");
+        return res.json();
+      })
       .then(data => {
         setWords(data);
         if (data.length > 0) {
           startQuiz(data);
         }
       })
-      .catch(err => console.error('Error loading words:', err));
+      .catch(err => {
+        console.warn('Backend not available, falling back to local storage.');
+        const saved = localStorage.getItem('hindiWordsData');
+        if (saved) {
+          const data = JSON.parse(saved);
+          setWords(data);
+          if (data.length > 0) {
+            startQuiz(data);
+          }
+        }
+      });
   }, [startQuiz]);
 
   // Save words to backend whenever they change
   const saveWords = async (newWords) => {
     setIsSaving(true);
     try {
-      await fetch('/api/words', {
+      const res = await fetch('/api/words', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newWords)
       });
-      setWords(newWords);
+      if (!res.ok) throw new Error("API not available");
     } catch (err) {
-      console.error('Error saving words:', err);
-      alert('Failed to save words');
+      localStorage.setItem('hindiWordsData', JSON.stringify(newWords));
     } finally {
+      setWords(newWords);
       setIsSaving(false);
     }
   };
